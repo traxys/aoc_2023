@@ -5,7 +5,7 @@ use bstr::{BString, ByteSlice};
 use color_eyre::eyre::{self, eyre};
 use enum_map::{Enum, EnumMap};
 
-#[derive(Debug, Enum)]
+#[derive(Debug, Enum, Clone, Copy)]
 pub enum Color {
     Blue,
     Red,
@@ -81,7 +81,20 @@ pub fn part1(input: Parsed) {
 }
 
 pub fn part2(input: Parsed) {
-    todo!("todo part2")
+    let power_sum = input
+        .iter()
+        .map(|game| {
+            let min_cubes = game.iter().fold(EnumMap::default(), |mut map, draw| {
+                for color in [Color::Red, Color::Blue, Color::Green] {
+                    map[color] = std::cmp::max(map[color], draw[color]);
+                }
+                map
+            });
+
+            min_cubes.values().product::<usize>()
+        })
+        .sum::<usize>();
+    print_res!("Sum of game powers: {power_sum}");
 }
 
 pub fn main() -> color_eyre::Result<()> {
