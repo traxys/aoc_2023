@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::{load, print_res};
+use aoc_2023::{load, print_res};
 use bstr::BString;
 
 type Parsed = ();

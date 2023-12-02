@@ -3,6 +3,7 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.naersk.url = "github:nix-community/naersk";
+  inputs.cargo-aoc.url = "github:traxys/aoc-tool";
   inputs.rust-overlay.url = "github:oxalica/rust-overlay";
 
   outputs = {
@@ -11,6 +12,7 @@
     flake-utils,
     naersk,
     rust-overlay,
+    cargo-aoc,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs {
@@ -24,7 +26,7 @@
       };
     in {
       devShell = pkgs.mkShell {
-        nativeBuildInputs = [rust];
+        nativeBuildInputs = [rust cargo-aoc.defaultPackage.${system}];
         RUST_PATH = "${rust}";
         RUST_DOC_PATH = "${rust}/share/doc/rust/html/std/index.html";
       };
