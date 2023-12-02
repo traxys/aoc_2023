@@ -29,6 +29,7 @@
         nativeBuildInputs = [rust cargo-aoc.defaultPackage.${system}];
         RUST_PATH = "${rust}";
         RUST_DOC_PATH = "${rust}/share/doc/rust/html/std/index.html";
+        AOC_YEAR = "2023";
       };
 
       defaultPackage = naersk'.buildPackage ./.;
