@@ -8,11 +8,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1701511669,
-        "narHash": "sha256-/0XpojXvtT2t1rL8beqj3IWXdvyRTiEVpkSlH1phrrQ=",
+        "lastModified": 1701519514,
+        "narHash": "sha256-nUjmIvYYP1B103ckIEpEETqnAk/Xb2ddvP8/ll6XQEU=",
         "owner": "traxys",
         "repo": "aoc-tool",
-        "rev": "b593dc13e24dc8f53535844f06d30fec0289b302",
+        "rev": "53eba316b6b49a4f7459c4e9075394b30dfc334c",
         "type": "github"
       },
       "original": {
