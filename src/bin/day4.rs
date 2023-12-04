@@ -38,11 +38,7 @@ pub fn parsing(input: &BString) -> color_eyre::Result<Parsed> {
 
             Ok(Card {
                 winning: parse_set(winning),
-                drawn: drawn
-                    .trim()
-                    .split(|&c| c == b' ')
-                    .map(parse_u64_bytes)
-                    .collect(),
+                drawn: parse_set(drawn),
             })
         })
         .collect()
@@ -51,7 +47,7 @@ pub fn parsing(input: &BString) -> color_eyre::Result<Parsed> {
 impl Card {
     fn points(&self) -> usize {
         let winning_drawn = self.winning.intersection(&self.drawn).count();
-        
+
         if winning_drawn == 0 {
             0
         } else {
@@ -66,7 +62,21 @@ pub fn part1(input: Parsed) {
 }
 
 pub fn part2(input: Parsed) {
-    todo!("todo part2")
+    let mut cards = vec![1; input.len()];
+    for (idx, card) in input.iter().enumerate() {
+        let win_count = card.winning.intersection(&card.drawn).count();
+        let copies = cards[idx];
+
+        if win_count > 0 {
+            for other in &mut cards[idx + 1..idx + win_count + 1] {
+                *other += copies;
+            }
+        }
+    }
+
+    let total_cards: usize = cards.iter().sum();
+
+    print_res!("Total cards at the end: {total_cards}");
 }
 
 pub fn main() -> color_eyre::Result<()> {
