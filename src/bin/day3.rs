@@ -3,7 +3,7 @@ use std::{
     time::Instant,
 };
 
-use aoc_2023::{load, print_res};
+use aoc_2023::{load, print_res, parse_u64_bytes};
 use bstr::{BStr, BString, ByteSlice};
 use regex::bytes::Regex;
 
@@ -33,18 +33,6 @@ fn neighbours<'a>(
         })
 }
 
-fn parse_bytes(b: &[u8]) -> u64 {
-    b.iter()
-        .map(|d| {
-            if d.is_ascii_digit() {
-                (d - b'0') as u64
-            } else {
-                panic!("Invalid digit in {}", b.as_bstr())
-            }
-        })
-        .fold(0, |acc, d| acc * 10 + d)
-}
-
 pub fn part1(input: Parsed) {
     let regex = Regex::new(r#"\d+"#).unwrap();
     let input = &input;
@@ -60,7 +48,7 @@ pub fn part1(input: Parsed) {
                         .flat_map(|x| neighbours(input, x, y))
                         .any(|(_, _, c)| !c.is_ascii_digit() && c != b'.')
                 })
-                .map(|m| parse_bytes(m.as_bytes()))
+                .map(|m| parse_u64_bytes(m.as_bytes()))
         })
         .sum();
     print_res!("Sum of part numbers: {part_number_sum}");
@@ -75,7 +63,7 @@ pub fn part2(input: Parsed) {
         .enumerate()
         .flat_map(|(y, line)| {
             regex.find_iter(line).flat_map(move |m| {
-                let num = parse_bytes(m.as_bytes());
+                let num = parse_u64_bytes(m.as_bytes());
                 let loc = (m.start(), y);
                 m.range()
                     .flat_map(move |x| neighbours(input, x, y))

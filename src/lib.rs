@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use bstr::BString;
+use bstr::{BString, ByteSlice};
 use clap::Parser;
 
 #[derive(Parser)]
@@ -33,6 +33,18 @@ macro_rules! print_res_part {
             print!($($tt)*)
         }
     };
+}
+
+pub fn parse_u64_bytes(b: &[u8]) -> u64 {
+    b.iter()
+        .map(|d| {
+            if d.is_ascii_digit() {
+                (d - b'0') as u64
+            } else {
+                panic!("Invalid digit in {}", b.as_bstr())
+            }
+        })
+        .fold(0, |acc, d| acc * 10 + d)
 }
 
 pub fn load() -> color_eyre::Result<Context> {
