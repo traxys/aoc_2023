@@ -125,19 +125,94 @@ impl Mappings {
 
         translate(&self.humidity_to_location, humidity)
     }
+
+    fn location_range(&self, interval: Interval) -> Vec<Interval> {
+        fn translate_range(mapping: &Mapping, range: Interval) -> Vec<Interval> {
+            let mut mappings = mapping.iter();
+            let mut mapped = Vec::new();
+
+            let mut current = range.start;
+            let mut current_len = range.len;
+
+            while current < range.start + range.len {
+                let Some((&map_interval, &to)) =
+                    mappings.by_ref().find(|(i, _)| i.start + i.len > current)
+                else {
+                    break;
+                };
+
+                if current < map_interval.start {
+                    let until_len = std::cmp::min(map_interval.start - current, current_len);
+
+                    mapped.push(Interval {
+                        start: current,
+                        len: until_len,
+                    });
+
+                    current += until_len;
+                    current_len -= until_len;
+                }
+
+                if current_len > 0 {
+                    assert!(current >= map_interval.start);
+
+                    let offset = current - map_interval.start;
+                    let len =
+                        std::cmp::min(map_interval.start + map_interval.len - current, current_len);
+
+                    mapped.push(Interval {
+                        start: to + offset,
+                        len,
+                    });
+                    current += len;
+                    current_len -= len;
+                }
+            }
+
+            if current_len > 0 {
+                mapped.push(Interval {
+                    start: current,
+                    len: current_len,
+                });
+            }
+
+            mapped
+        }
+
+        fn translate_range_list(mapping: &Mapping, ranges: &[Interval]) -> Vec<Interval> {
+            ranges
+                .iter()
+                .flat_map(|&i| translate_range(mapping, i))
+                .collect()
+        }
+
+        let soil = translate_range(&self.seed_to_soil, interval);
+        let fertilizer = translate_range_list(&self.soil_to_fertilizer, &soil);
+        let water = translate_range_list(&self.fertilizer_to_water, &fertilizer);
+        let light = translate_range_list(&self.water_to_light, &water);
+        let temperature = translate_range_list(&self.light_to_temperature, &light);
+        let humidity = translate_range_list(&self.temperature_to_humidity, &temperature);
+
+        translate_range_list(&self.humidity_to_location, &humidity)
+    }
 }
 
 pub fn part1((seeds, mappings): Parsed) {
-    let min_location = seeds
-        .iter()
-        .map(|&s| mappings.location(s))
-        .min()
-        .unwrap();
+    let min_location = seeds.iter().map(|&s| mappings.location(s)).min().unwrap();
     print_res!("Min location: {min_location}")
 }
 
-pub fn part2(input: Parsed) {
-    todo!("todo part2")
+pub fn part2((seeds, mappings): Parsed) {
+    let seed_ranges = seeds
+        .chunks_exact(2)
+        .map(|c| Interval {
+            start: c[0],
+            len: c[1],
+        })
+        .flat_map(|i| mappings.location_range(i).into_iter())
+        .min()
+        .unwrap();
+    print_res!("Min location with ranges: {}", seed_ranges.start)
 }
 
 pub fn main() -> color_eyre::Result<()> {
