@@ -1,7 +1,4 @@
-use std::{
-    ops::{Range, RangeInclusive},
-    time::Instant,
-};
+use std::{ops::RangeInclusive, time::Instant};
 
 use aoc_2023::{load, print_res};
 use bstr::BString;
@@ -82,7 +79,22 @@ pub fn part1(input: Parsed) {
 }
 
 pub fn part2(input: Parsed) {
-    todo!("todo part2")
+    let mut total_time = 0;
+    let mut total_distance = 0;
+    for race in input {
+        total_time = total_time * 10u64.pow(race.duration.ilog10() + 1) + race.duration;
+        total_distance = total_distance * 10u64.pow(race.record.ilog10() + 1) + race.record;
+    }
+
+    let single_race = Race {
+        record: total_distance,
+        duration: total_time,
+    };
+
+    let winning_range = single_race.winning_charges();
+    let ways_to_win = winning_range.end() - winning_range.start() + 1;
+
+    print_res!("Number of ways the race can be won: {ways_to_win}");
 }
 
 pub fn main() -> color_eyre::Result<()> {
