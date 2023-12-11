@@ -82,12 +82,14 @@ impl NebulaGrid {
             (abs_diff - dup_count) + (dup_count * empty_space)
         };
 
-        self.galaxies()
-            .cartesian_product(self.galaxies())
-            .filter(|(a, b)| a != b)
+        let galaxies = self.galaxies().collect_vec();
+
+        galaxies
+            .iter()
+            .enumerate()
+            .flat_map(|(i, &a)| galaxies[i + 1..].iter().map(move |&b| (a, b)))
             .map(|((ax, ay), (bx, by))| distance(ax, bx, &dup_cols) + distance(ay, by, &dup_rows))
-            .sum::<usize>()
-            / 2
+            .sum()
     }
 
     fn galaxies(&self) -> impl Iterator<Item = (usize, usize)> + '_ + Clone {
