@@ -65,10 +65,11 @@ pub fn parsing(input: &BString) -> color_eyre::Result<Parsed> {
 }
 
 fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
-    let mut stack = vec![(0, None, springs.0.as_slice(), ranges)];
+    let mut stack = vec![(0, None, ranges)];
+    let springs = &springs.0;
 
     let mut count = 0;
-    while let Some((idx, prev, springs, ranges)) = stack.pop() {
+    while let Some((idx, prev, ranges)) = stack.pop() {
         let len = ranges[0];
 
         if idx + len > springs.len() {
@@ -92,17 +93,12 @@ fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
             } else if idx + len < springs.len() {
                 assert_ne!(springs[idx + len], State::Damaged,);
 
-                stack.push((
-                    idx + len + 1,
-                    Some(State::Operational),
-                    springs,
-                    &ranges[1..],
-                ));
+                stack.push((idx + len + 1, Some(State::Operational), &ranges[1..]));
             }
         }
 
         if springs[idx] != State::Damaged {
-            stack.push((idx + 1, Some(State::Operational), springs, ranges));
+            stack.push((idx + 1, Some(State::Operational), ranges));
         }
     }
 
