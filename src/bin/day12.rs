@@ -119,15 +119,14 @@ pub fn part2(input: Parsed) {
     let number_of_arrangements: usize = input
         .into_iter()
         .map(|(s, r)| {
-            (
-                SpringField(
-                    std::iter::repeat_with(|| s.0.clone())
-                        .intersperse_with(|| vec![State::Unknown])
-                        .flatten()
-                        .collect(),
-                ),
-                r.repeat(5),
-            )
+            let repeated = SpringField(
+                std::iter::repeat_with(|| s.0.clone())
+                    .take(5)
+                    .intersperse_with(|| vec![State::Unknown])
+                    .flatten()
+                    .collect(),
+            );
+            (repeated, r.repeat(5))
         })
         .map(|(s, r)| possible_arrangements(s, &r))
         .sum();
