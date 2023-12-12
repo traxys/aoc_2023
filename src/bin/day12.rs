@@ -65,17 +65,17 @@ pub fn parsing(input: &BString) -> color_eyre::Result<Parsed> {
 }
 
 fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
-    let mut stack = vec![(0, None, springs, ranges)];
+    let mut stack = vec![(0, None, springs.0.as_slice(), ranges)];
 
     let mut count = 0;
     while let Some((idx, prev, springs, ranges)) = stack.pop() {
         let len = ranges[0];
 
-        if idx + len > springs.0.len() {
+        if idx + len > springs.len() {
             continue;
         }
 
-        let pattern_start = &springs.0[idx..];
+        let pattern_start = &springs[idx..];
 
         let could_be = (prev.is_none() || prev == Some(State::Operational))
             && pattern_start
@@ -86,27 +86,22 @@ fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
 
         if could_be {
             if ranges.len() == 1 {
-                if springs.0[idx + len..].iter().all(|&s| s != State::Damaged) {
+                if springs[idx + len..].iter().all(|&s| s != State::Damaged) {
                     count += 1;
                 }
-            } else if idx + len < springs.0.len() {
-                let mut springs = springs.clone();
+            } else if idx + len < springs.len() {
+                assert_ne!(springs[idx + len], State::Damaged,);
 
-                springs.0[idx + len - 1] = State::Damaged;
-
-                assert_ne!(
-                    springs.0[idx + len],
-                    State::Damaged,
-                    "At {idx} in field {springs} for range {len}",
-                );
-
-                springs.0[idx + len] = State::Operational;
-
-                stack.push((idx + len, Some(State::Operational), springs, &ranges[1..]));
+                stack.push((
+                    idx + len + 1,
+                    Some(State::Operational),
+                    springs,
+                    &ranges[1..],
+                ));
             }
         }
 
-        if springs.0[idx] != State::Damaged {
+        if springs[idx] != State::Damaged {
             stack.push((idx + 1, Some(State::Operational), springs, ranges));
         }
     }
