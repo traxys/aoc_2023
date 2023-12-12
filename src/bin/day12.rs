@@ -1,8 +1,7 @@
-use std::time::Instant;
+use std::{collections::HashMap, time::Instant};
 
 use aoc_2023::{load, print_res};
 use bstr::{BString, ByteSlice};
-use cached::proc_macro::cached;
 use color_eyre::eyre::eyre;
 //use indicatif::ParallelProgressIterator;
 use indicatif::ProgressIterator;
@@ -68,61 +67,63 @@ pub fn parsing(input: &BString) -> color_eyre::Result<Parsed> {
         .collect()
 }
 
-#[cached]
-fn possible_arrangements_segment(springs: Vec<State>, ranges: Vec<usize>) -> usize {
-    if springs.iter().all(|&s| s == State::Damaged) {
-        if ranges.len() == 1 && ranges[0] == springs.len() {
-            return 1;
-        } else {
-            return 0;
+type Cache<'a> = HashMap<(&'a [State], &'a [usize]), usize>;
+
+fn possible_arrangements_segment_cached<'a>(
+    remain: &'a [State],
+    ranges: &'a [usize],
+    cache: &mut Cache<'a>,
+) -> usize {
+    match cache.get(&(remain, ranges)) {
+        None => {
+            let v = possible_arrangements_segment(remain, ranges, cache);
+            cache.insert((remain, ranges), v);
+            v
+        }
+        Some(&v) => v,
+    }
+}
+
+fn possible_arrangements_segment<'a>(
+    remain: &'a [State],
+    ranges: &'a [usize],
+    cache: &mut Cache<'a>,
+) -> usize {
+    let mut count = 0;
+    let len = ranges[0];
+
+    if len > remain.len() {
+        return 0;
+    }
+
+    let could_be = remain.iter().take(len).all(|&c| c != State::Operational)
+        && (remain.len() == len || remain[len] != State::Damaged);
+
+    if could_be {
+        if ranges.len() == 1 {
+            if remain[len..].iter().all(|&s| s != State::Damaged) {
+                count += 1;
+            }
+        } else if len < remain.len() {
+            assert_ne!(remain[len], State::Damaged);
+
+            count += possible_arrangements_segment_cached(&remain[len + 1..], &ranges[1..], cache);
         }
     }
 
-    let ranges = ranges.as_slice();
-
-    let mut stack = vec![(0, None, ranges)];
-
-    let mut count = 0;
-    while let Some((idx, prev, ranges)) = stack.pop() {
-        let len = ranges[0];
-
-        if idx + len > springs.len() {
-            continue;
-        }
-
-        let pattern_start = &springs[idx..];
-
-        let could_be = (prev.is_none() || prev == Some(State::Operational))
-            && pattern_start
-                .iter()
-                .take(len)
-                .all(|&c| c != State::Operational)
-            && (pattern_start.len() == len || pattern_start[len] != State::Damaged);
-
-        if could_be {
-            if ranges.len() == 1 {
-                if springs[idx + len..].iter().all(|&s| s != State::Damaged) {
-                    count += 1;
-                }
-            } else if idx + len < springs.len() {
-                assert_ne!(springs[idx + len], State::Damaged);
-
-                stack.push((idx + len + 1, Some(State::Operational), &ranges[1..]));
-            }
-        }
-
-        if springs[idx] != State::Damaged {
-            stack.push((idx + 1, Some(State::Operational), ranges));
-        }
+    if remain[0] != State::Damaged {
+        count += possible_arrangements_segment_cached(&remain[1..], ranges, cache);
     }
 
     count
 }
 
-fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
+fn possible_arrangements<'a>(
+    springs: &'a [State],
+    ranges: &'a [usize],
+    cache: &mut Cache<'a>,
+) -> usize {
     //println!("\n\nStarting: {springs} ranges: {ranges:?}");
-
-    let springs = &springs.0;
 
     let runs = springs
         .split(|&s| s == State::Operational)
@@ -152,7 +153,7 @@ fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
 
                 let (try_range, next_range) = ranges.split_at(r);
 
-                let ways = possible_arrangements_segment(run.to_vec(), try_range.to_vec());
+                let ways = possible_arrangements_segment(run, try_range, cache);
 
                 /*println!(
                     "   for (used:{used:?}) {try_range:?} (remain: {next_range:?}) --> {ways}"
@@ -189,9 +190,11 @@ fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
 }
 
 pub fn part1(input: Parsed) {
+    let mut cache = Cache::new();
+
     let number_of_arrangements: usize = input
-        .into_iter()
-        .map(|(s, r)| possible_arrangements(s.clone(), &r))
+        .iter()
+        .map(|(s, r)| possible_arrangements(&s.0, r, &mut cache))
         .sum();
 
     print_res!("Total number of arragengements: {number_of_arrangements}");
@@ -199,6 +202,8 @@ pub fn part1(input: Parsed) {
 
 #[allow(unstable_name_collisions)]
 pub fn part2(input: Parsed) {
+    let mut cache = Cache::new();
+
     let inputs = input
         .into_iter()
         .map(|(s, r)| {
@@ -215,9 +220,9 @@ pub fn part2(input: Parsed) {
 
     let line_count = inputs.len() as u64;
     let number_of_arrangements: usize = inputs
-        .into_iter()
+        .iter()
         //.into_par_iter()
-        .map(|(s, r)| possible_arrangements(s.clone(), &r))
+        .map(|(s, r)| possible_arrangements(&s.0, r, &mut cache))
         .progress_count(line_count)
         .sum();
 
