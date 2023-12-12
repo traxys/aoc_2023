@@ -1,22 +1,18 @@
-use std::{
-    collections::{hash_map::DefaultHasher, HashSet},
-    hash::{Hash, Hasher},
-    time::Instant,
-};
+use std::time::Instant;
 
 use aoc_2023::{load, print_res};
 use bstr::{BString, ByteSlice};
 use color_eyre::eyre::eyre;
 use itertools::Itertools;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum State {
     Damaged,
     Operational,
     Unknown,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SpringField(Vec<State>);
 
 impl std::fmt::Display for SpringField {
@@ -71,26 +67,14 @@ pub fn parsing(input: &BString) -> color_eyre::Result<Parsed> {
 fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
     let mut stack = vec![(0, None, springs, ranges)];
 
-    let mut ways = Vec::new();
-
-    let mut seen = HashSet::new();
-
-    fn calculate_hash<T: Hash>(t: &T) -> u64 {
-        let mut s = DefaultHasher::new();
-        t.hash(&mut s);
-        s.finish()
-    }
-
+    let mut count = 0;
     while let Some((idx, prev, springs, ranges)) = stack.pop() {
-        let spring_hash = calculate_hash(&springs);
+        let len = ranges[0];
 
-        if idx + ranges[0] > springs.0.len() || seen.contains(&(idx, spring_hash, ranges)) {
+        if idx + len > springs.0.len() {
             continue;
         }
 
-        seen.insert((idx, spring_hash, ranges));
-
-        let len = ranges[0];
         let pattern_start = &springs.0[idx..];
 
         let could_be = (prev.is_none() || prev == Some(State::Operational))
@@ -101,17 +85,15 @@ fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
             && (pattern_start.len() == len || pattern_start[len] != State::Damaged);
 
         if could_be {
-            let mut springs = springs.clone();
-
-            springs.0[idx..idx + len]
-                .iter_mut()
-                .for_each(|c| *c = State::Damaged);
-
             if ranges.len() == 1 {
                 if springs.0[idx + len..].iter().all(|&s| s != State::Damaged) {
-                    ways.push(springs);
+                    count += 1;
                 }
             } else if idx + len < springs.0.len() {
+                let mut springs = springs.clone();
+
+                springs.0[idx + len - 1] = State::Damaged;
+
                 assert_ne!(
                     springs.0[idx + len],
                     State::Damaged,
@@ -129,7 +111,7 @@ fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
         }
     }
 
-    ways.len()
+    count
 }
 
 pub fn part1(input: Parsed) {
