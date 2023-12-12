@@ -3,7 +3,9 @@ use std::time::Instant;
 use aoc_2023::{load, print_res};
 use bstr::{BString, ByteSlice};
 use color_eyre::eyre::eyre;
+use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
+use rayon::prelude::*;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum State {
@@ -116,7 +118,7 @@ pub fn part1(input: Parsed) {
 
 #[allow(unstable_name_collisions)]
 pub fn part2(input: Parsed) {
-    let number_of_arrangements: usize = input
+    let inputs = input
         .into_iter()
         .map(|(s, r)| {
             let repeated = SpringField(
@@ -128,7 +130,13 @@ pub fn part2(input: Parsed) {
             );
             (repeated, r.repeat(5))
         })
+        .collect_vec();
+
+    let line_count = inputs.len() as u64;
+    let number_of_arrangements: usize = inputs
+        .into_par_iter()
         .map(|(s, r)| possible_arrangements(s, &r))
+        .progress_count(line_count)
         .sum();
 
     print_res!("Total number of arragengements: {number_of_arrangements}");
