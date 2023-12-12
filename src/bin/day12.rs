@@ -100,7 +100,14 @@ fn possible_arrangements(springs: SpringField, ranges: &[usize]) -> usize {
         }
 
         if springs[idx] != State::Damaged {
-            stack.push((idx + 1, Some(State::Operational), ranges));
+            let next = springs
+                .iter()
+                .enumerate()
+                .skip(idx + 1)
+                .find(|&(_, &s)| s != State::Operational);
+            if let Some((next, _)) = next {
+                stack.push((next, Some(State::Operational), ranges));
+            }
         }
     }
 
