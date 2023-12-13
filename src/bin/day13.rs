@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, time::Instant};
+use std::time::Instant;
 
 use aoc_2023::{load, print_res};
 use bstr::{BString, ByteSlice};
@@ -42,8 +42,11 @@ pub fn parsing(input: &BString) -> color_eyre::Result<Parsed> {
         .try_collect()
 }
 
-fn position_iterator(start: usize, len: usize) -> impl Iterator<Item = usize> {
-    (0..start).rev().interleave(start..(len - 1))
+fn position_iterator(start: usize, len: usize, skip: Option<usize>) -> impl Iterator<Item = usize> {
+    (0..start)
+        .rev()
+        .interleave(start..(len - 1))
+        .filter(move |&s| Some(s + 1) != skip)
 }
 
 impl Pattern {
@@ -75,13 +78,13 @@ impl Pattern {
         true
     }
 
-    fn vertical_reflection(&self) -> Option<usize> {
+    fn vertical_reflection(&self, skip: Option<usize>) -> Option<usize> {
         //println!("Pattern:\n{self}");
         let p = &self.0;
         let len = p[0].len();
         let start = (len / 2) + (len % 2);
 
-        position_iterator(start, len)
+        position_iterator(start, len, skip)
             .find(|&i| self.vertical_reflection_at(i))
             .map(|i| i + 1)
     }
@@ -112,13 +115,13 @@ impl Pattern {
         true
     }
 
-    fn horizontal_reflection(&self) -> Option<usize> {
+    fn horizontal_reflection(&self, skip: Option<usize>) -> Option<usize> {
         //println!("Pattern:\n{self}");
         let p = &self.0;
         let len = p.len();
         let start = (len / 2) + (len % 2);
 
-        position_iterator(start, len)
+        position_iterator(start, len, skip)
             .find(|&i| self.horizontal_reflection_at(i))
             .map(|i| i + 1)
     }
@@ -126,8 +129,8 @@ impl Pattern {
     fn reflection_score(&self) -> usize {
         //println!("Reflections for:\n{self}");
 
-        let vertical = self.vertical_reflection();
-        let horizontal = self.horizontal_reflection();
+        let vertical = self.vertical_reflection(None);
+        let horizontal = self.horizontal_reflection(None);
 
         match (vertical, horizontal) {
             (None, None) => {
@@ -138,6 +141,30 @@ impl Pattern {
             (Some(a), Some(b)) => panic!("Ambigous reflection vertical {a}, horizontal {b}"),
         }
     }
+
+    fn reflection_score_ignore(&self, score: usize) -> Option<usize> {
+        //println!("Reflections for:\n{self}");
+
+        let vertical_skip = if score >= 100 { None } else { Some(score) };
+        let horizontal_skip = if score >= 100 {
+            Some(score / 100)
+        } else {
+            None
+        };
+
+        //dbg!(score, vertical_skip, horizontal_skip);
+
+        let vertical = self.vertical_reflection(vertical_skip);
+        let horizontal = self.horizontal_reflection(horizontal_skip).map(|s| s * 100);
+
+        match (vertical, horizontal) {
+            (None, None) => None,
+            (Some(s), None) | (None, Some(s)) => Some(s),
+            (Some(a), Some(b)) => {
+                panic!("Ambigous reflection vertical {a:?}, horizontal {b:?}")
+            }
+        }
+    }
 }
 
 pub fn part1(input: Parsed) {
@@ -146,7 +173,29 @@ pub fn part1(input: Parsed) {
 }
 
 pub fn part2(input: Parsed) {
-    todo!("todo part2")
+    let scores = input.iter().map(Pattern::reflection_score).collect_vec();
+
+    let smudged_score = input
+        .into_iter()
+        .enumerate()
+        .map(|(i, mut p)| {
+            for y in 0..p.0.len() {
+                for x in 0..p.0[0].len() {
+                    p.0[y][x] ^= true;
+                    let smudged = p.reflection_score_ignore(scores[i]);
+                    p.0[y][x] ^= true;
+
+                    if let Some(smudged) = smudged {
+                        return smudged;
+                    }
+                }
+            }
+
+            panic!("Did not find a smudge in\n{p}");
+        })
+        .sum::<usize>();
+
+    print_res!("Smudged score: {smudged_score}");
 }
 
 pub fn main() -> color_eyre::Result<()> {
