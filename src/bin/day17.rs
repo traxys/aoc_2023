@@ -30,6 +30,25 @@ enum Direction {
     Right,
 }
 
+impl Direction {
+    fn perpendicular(&self) -> [Self; 2] {
+        match self {
+            Direction::Up | Direction::Down => [Direction::Left, Direction::Right],
+            Direction::Left | Direction::Right => [Direction::Up, Direction::Down],
+        }
+    }
+
+    fn step(&self, x: usize, y: usize, max_x: usize, max_y: usize) -> Option<(usize, usize)> {
+        match self {
+            Direction::Up if y != 0 => Some((x, y - 1)),
+            Direction::Down if y != max_y => Some((x, y + 1)),
+            Direction::Left if x != 0 => Some((x - 1, y)),
+            Direction::Right if x != max_x => Some((x + 1, y)),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 struct Cauldron {
     direction: Direction,
@@ -106,86 +125,33 @@ fn min_path(input: &[Vec<u8>], turn_speed: u8, max_speed: u8) -> u64 {
             })
         };
 
-        match cauldron.direction {
-            dir @ (Direction::Up | Direction::Down) => {
-                if cauldron.x != 0 && cauldron.speed >= turn_speed {
+        let max_x = input[0].len() - 1;
+        let max_y = input.len() - 1;
+
+        if cauldron.speed >= turn_speed {
+            for direction in cauldron.direction.perpendicular() {
+                if let Some((x, y)) = direction.step(cauldron.x, cauldron.y, max_x, max_y) {
                     push(Cauldron {
-                        direction: Direction::Left,
+                        direction,
                         speed: 1,
-                        x: cauldron.x - 1,
-                        y: cauldron.y,
-                    });
-                }
-
-                if cauldron.x != input[0].len() - 1 && cauldron.speed >= turn_speed {
-                    push(Cauldron {
-                        direction: Direction::Right,
-                        speed: 1,
-                        x: cauldron.x + 1,
-                        y: cauldron.y,
-                    })
-                }
-
-                if dir == Direction::Up && cauldron.y != 0 && cauldron.speed < max_speed {
-                    push(Cauldron {
-                        direction: Direction::Up,
-                        speed: cauldron.speed + 1,
-                        x: cauldron.x,
-                        y: cauldron.y - 1,
-                    });
-                }
-
-                if dir == Direction::Down
-                    && cauldron.y != input.len() - 1
-                    && cauldron.speed < max_speed
-                {
-                    push(Cauldron {
-                        direction: Direction::Down,
-                        speed: cauldron.speed + 1,
-                        x: cauldron.x,
-                        y: cauldron.y + 1,
+                        x,
+                        y,
                     });
                 }
             }
-            dir @ (Direction::Left | Direction::Right) => {
-                if cauldron.y != 0 && cauldron.speed >= turn_speed {
-                    push(Cauldron {
-                        direction: Direction::Up,
-                        speed: 1,
-                        x: cauldron.x,
-                        y: cauldron.y - 1,
-                    });
-                }
+        }
 
-                if cauldron.y != input.len() - 1 && cauldron.speed >= turn_speed {
-                    push(Cauldron {
-                        direction: Direction::Down,
-                        speed: 1,
-                        x: cauldron.x,
-                        y: cauldron.y + 1,
-                    })
-                }
-
-                if dir == Direction::Left && cauldron.x != 0 && cauldron.speed < max_speed {
-                    push(Cauldron {
-                        direction: Direction::Left,
-                        speed: cauldron.speed + 1,
-                        x: cauldron.x - 1,
-                        y: cauldron.y,
-                    });
-                }
-
-                if dir == Direction::Right
-                    && cauldron.x != input[0].len() - 1
-                    && cauldron.speed < max_speed
-                {
-                    push(Cauldron {
-                        direction: Direction::Right,
-                        speed: cauldron.speed + 1,
-                        x: cauldron.x + 1,
-                        y: cauldron.y,
-                    });
-                }
+        if cauldron.speed < max_speed {
+            if let Some((x, y)) = cauldron
+                .direction
+                .step(cauldron.x, cauldron.y, max_x, max_y)
+            {
+                push(Cauldron {
+                    direction: cauldron.direction,
+                    x,
+                    y,
+                    speed: cauldron.speed + 1,
+                });
             }
         }
     }
