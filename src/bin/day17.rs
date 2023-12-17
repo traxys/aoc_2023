@@ -56,7 +56,7 @@ impl Ord for Path {
     }
 }
 
-pub fn part1(input: Parsed) {
+fn min_path(input: &[Vec<u8>], turn_speed: u8, max_speed: u8) -> u64 {
     let mut paths = BinaryHeap::new();
     paths.push(Path {
         heat_loss: 0,
@@ -79,7 +79,7 @@ pub fn part1(input: Parsed) {
 
     let mut visited = HashMap::new();
 
-    let min_heat_loss = loop {
+    loop {
         let Path {
             cauldron,
             mut heat_loss,
@@ -108,7 +108,7 @@ pub fn part1(input: Parsed) {
 
         match cauldron.direction {
             dir @ (Direction::Up | Direction::Down) => {
-                if cauldron.x != 0 {
+                if cauldron.x != 0 && cauldron.speed >= turn_speed {
                     push(Cauldron {
                         direction: Direction::Left,
                         speed: 1,
@@ -117,7 +117,7 @@ pub fn part1(input: Parsed) {
                     });
                 }
 
-                if cauldron.x != input[0].len() - 1 {
+                if cauldron.x != input[0].len() - 1 && cauldron.speed >= turn_speed {
                     push(Cauldron {
                         direction: Direction::Right,
                         speed: 1,
@@ -126,7 +126,7 @@ pub fn part1(input: Parsed) {
                     })
                 }
 
-                if dir == Direction::Up && cauldron.y != 0 && cauldron.speed < 3 {
+                if dir == Direction::Up && cauldron.y != 0 && cauldron.speed < max_speed {
                     push(Cauldron {
                         direction: Direction::Up,
                         speed: cauldron.speed + 1,
@@ -135,7 +135,10 @@ pub fn part1(input: Parsed) {
                     });
                 }
 
-                if dir == Direction::Down && cauldron.y != input.len() - 1 && cauldron.speed < 3 {
+                if dir == Direction::Down
+                    && cauldron.y != input.len() - 1
+                    && cauldron.speed < max_speed
+                {
                     push(Cauldron {
                         direction: Direction::Down,
                         speed: cauldron.speed + 1,
@@ -145,7 +148,7 @@ pub fn part1(input: Parsed) {
                 }
             }
             dir @ (Direction::Left | Direction::Right) => {
-                if cauldron.y != 0 {
+                if cauldron.y != 0 && cauldron.speed >= turn_speed {
                     push(Cauldron {
                         direction: Direction::Up,
                         speed: 1,
@@ -154,7 +157,7 @@ pub fn part1(input: Parsed) {
                     });
                 }
 
-                if cauldron.y != input.len() - 1 {
+                if cauldron.y != input.len() - 1 && cauldron.speed >= turn_speed {
                     push(Cauldron {
                         direction: Direction::Down,
                         speed: 1,
@@ -163,7 +166,7 @@ pub fn part1(input: Parsed) {
                     })
                 }
 
-                if dir == Direction::Left && cauldron.x != 0 && cauldron.speed < 3 {
+                if dir == Direction::Left && cauldron.x != 0 && cauldron.speed < max_speed {
                     push(Cauldron {
                         direction: Direction::Left,
                         speed: cauldron.speed + 1,
@@ -172,7 +175,9 @@ pub fn part1(input: Parsed) {
                     });
                 }
 
-                if dir == Direction::Right && cauldron.x != input[0].len() - 1 && cauldron.speed < 3
+                if dir == Direction::Right
+                    && cauldron.x != input[0].len() - 1
+                    && cauldron.speed < max_speed
                 {
                     push(Cauldron {
                         direction: Direction::Right,
@@ -183,13 +188,19 @@ pub fn part1(input: Parsed) {
                 }
             }
         }
-    };
+    }
+}
+
+pub fn part1(input: Parsed) {
+    let min_heat_loss = min_path(&input, 1, 3);
 
     print_res!("Min heat loss: {min_heat_loss}")
 }
 
 pub fn part2(input: Parsed) {
-    todo!("todo part2")
+    let min_heat_loss = min_path(&input, 4, 10);
+
+    print_res!("Min ultra heat loss: {min_heat_loss}")
 }
 
 pub fn main() -> color_eyre::Result<()> {
