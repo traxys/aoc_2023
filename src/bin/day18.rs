@@ -110,23 +110,35 @@ where
             .then(x_spread(edge_a).cmp(&x_spread(edge_b)))
     });
 
+    let y_values = edges
+        .iter()
+        .flat_map(|((_, ay), (_, by))| [ay, by])
+        .flat_map(|&y| [y, y + 1])
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .sorted()
+        .collect_vec();
+
     let mut min_x = i64::MAX;
     let mut min_y = i64::MAX;
-    let mut max_x = i64::MIN;
-    let mut max_y = i64::MIN;
 
     for &(x, y) in edges.iter().map(|(s, _)| s) {
         min_x = std::cmp::min(x, min_x);
         min_y = std::cmp::min(y, min_y);
-
-        max_x = std::cmp::max(x, max_x);
-        max_y = std::cmp::max(y, max_y);
     }
 
     let mut total = 0;
-    for y in min_y..=max_y {
+
+    let mut row_count = 0;
+    let mut prev_row = min_y;
+
+    for y in y_values {
         let mut x = min_x - 1;
         let mut inside = false;
+
+        total += (y - 1 - prev_row) * row_count;
+
+        let mut row_total = 0;
 
         // println!("y={y}");
 
@@ -138,13 +150,13 @@ where
             let edge_end = std::cmp::max(a.0, b.0);
 
             if inside && x <= edge_start {
-                total += edge_start - x;
+                row_total += edge_start - x;
                 // println!("  Adding inside {x}..{edge_start} ({})", edge_start - x);
             }
 
             match a.1 == b.1 {
                 true => {
-                    total += edge_end - edge_start - 1;
+                    row_total += edge_end - edge_start - 1;
                     x = edge_end + 1;
                     // println!(
                     //     "  Adding {}..{edge_end} ({})",
@@ -154,7 +166,7 @@ where
                 }
                 false => {
                     // println!("  Adding {}", a.0);
-                    total += 1;
+                    row_total += 1;
                     x = a.0 + 1;
 
                     if (a.1 == y && b.1 > y) || (b.1 == y && a.1 > y) || (a.1 != y && b.1 != y) {
@@ -164,7 +176,11 @@ where
             }
         }
 
-        // println!("Total: {total}");
+        total += row_total;
+        row_count = row_total;
+        prev_row = y;
+
+        // println!("Total: {row_total}");
     }
 
     total as usize
