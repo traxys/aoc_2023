@@ -1,10 +1,10 @@
 use std::time::Instant;
 
-use fxhash::FxHashMap;
 use aoc_2023::{load, print_res};
 use bstr::{BString, ByteSlice};
 use color_eyre::eyre::ensure;
 use enum_map::{Enum, EnumMap};
+use fxhash::FxHashMap;
 use itertools::Itertools;
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
@@ -39,7 +39,7 @@ impl GateName {
 #[derive(Debug)]
 pub struct Broadcaster(Vec<GateName>);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum GateKind {
     FlipFlop,
     Conjunction,
@@ -99,7 +99,7 @@ pub fn parsing(input: &BString) -> color_eyre::Result<Parsed> {
     ))
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Enum, Hash)]
 enum Pulse {
     Low,
     High,
@@ -121,9 +121,16 @@ struct Network<'a> {
     desc: &'a FxHashMap<GateName, GateDesc>,
 }
 
-enum RunResult {
-    Presses(enum_map::EnumMap<Pulse, u64>),
-    Got,
+fn predecessors(
+    gate_desc: &FxHashMap<GateName, GateDesc>,
+    gate: GateName,
+) -> impl Iterator<Item = GateName> + '_ {
+    gate_desc
+        .iter()
+        .filter_map(move |(src, src_desc)| match src_desc.to.contains(&gate) {
+            true => Some(*src),
+            false => None,
+        })
 }
 
 impl<'a> Network<'a> {
@@ -141,10 +148,8 @@ impl<'a> Network<'a> {
                                 "Conjunction gates can't have broadcaster as a source"
                             );
 
-                            let from: FxHashMap<_, _> = gate_desc
-                                .iter()
-                                .filter(|(_, src_desc)| src_desc.to.contains(name))
-                                .map(|(src, _)| (*src, Pulse::Low))
+                            let from: FxHashMap<_, _> = predecessors(gate_desc, *name)
+                                .map(|src| (src, Pulse::Low))
                                 .collect();
                             let waiting = from.len();
 
@@ -157,7 +162,11 @@ impl<'a> Network<'a> {
         }
     }
 
-    fn run(&mut self, values: &[GateName], wait_for: Option<GateName>) -> RunResult {
+    fn run(
+        &mut self,
+        values: &[GateName],
+        mut record: Option<&mut FxHashMap<(GateName, Pulse), usize>>,
+    ) -> enum_map::EnumMap<Pulse, u64> {
         let mut pulse_count = enum_map::EnumMap::default();
 
         // println!("button -Low-> broadcaster");
@@ -173,11 +182,14 @@ impl<'a> Network<'a> {
         while !pulses.is_empty() {
             let mut new_pulses = Vec::new();
 
-            for (src, to, len) in &pulses {
-                if Some(*to) == wait_for && *len == Pulse::Low {
-                    return RunResult::Got;
+            for &(src, to, len) in &pulses {
+                if let Some(r) = record.as_deref_mut() {
+                    if let Some(src) = src {
+                        if let Some(v) = r.get_mut(&(src, len)) {
+                            *v += 1;
+                        }
+                    }
                 }
-
                 // println!(
                 //     "{} -{len:?}-> {to}",
                 //     src.as_ref()
@@ -186,9 +198,9 @@ impl<'a> Network<'a> {
                 //         .unwrap_or("broadcaster")
                 // );
 
-                pulse_count[*len] += 1;
+                pulse_count[len] += 1;
 
-                let Some(state) = self.gates.get_mut(to) else {
+                let Some(state) = self.gates.get_mut(&to) else {
                     continue;
                 };
 
@@ -208,12 +220,12 @@ impl<'a> Network<'a> {
                         let src = src.unwrap();
                         let value = from.get_mut(&src).unwrap();
 
-                        if *value != *len {
+                        if *value != len {
                             match value {
                                 Pulse::Low => *waiting -= 1,
                                 Pulse::High => *waiting += 1,
                             }
-                            *value = *len;
+                            *value = len;
                         }
 
                         Some(match *waiting == 0 {
@@ -224,8 +236,8 @@ impl<'a> Network<'a> {
                 };
 
                 if let Some(p) = pulse {
-                    for &next in &self.desc[to].to {
-                        new_pulses.push((Some(*to), next, p))
+                    for &next in &self.desc[&to].to {
+                        new_pulses.push((Some(to), next, p))
                     }
                 }
             }
@@ -233,7 +245,7 @@ impl<'a> Network<'a> {
             pulses = new_pulses;
         }
 
-        RunResult::Presses(pulse_count)
+        pulse_count
     }
 }
 
@@ -242,10 +254,10 @@ pub fn part1((broadcaster, gate_desc): Parsed) {
 
     let mut total_count = EnumMap::<_, u64>::default();
     for _ in 0..1000 {
-        let RunResult::Presses(p) = network.run(&broadcaster.0, None) else {
-            panic!("Got RX early");
-        };
-        p.iter().for_each(|(p, l)| total_count[p] += l);
+        network
+            .run(&broadcaster.0, None)
+            .iter()
+            .for_each(|(p, l)| total_count[p] += l);
     }
 
     print_res!(
@@ -254,23 +266,59 @@ pub fn part1((broadcaster, gate_desc): Parsed) {
     );
 }
 
+fn gcd(mut a: u64, mut b: u64) -> u64 {
+    while b != 0 {
+        (a, b) = (b, a % b);
+    }
+
+    a
+}
+
+fn lcm(a: u64, b: u64) -> u64 {
+    (a * b) / gcd(a, b)
+}
+
 pub fn part2((broadcaster, gate_desc): Parsed) {
     let mut network = Network::new(&gate_desc, &broadcaster.0);
-    let mut i = 0;
     let rx = GateName::from_bytes(b"rx").unwrap();
 
-    let presses = loop {
+    let (rx_trigger,) = predecessors(&gate_desc, rx).collect_tuple().unwrap();
+    assert!(gate_desc[&rx_trigger].kind == GateKind::Conjunction);
+
+    let trigger_inputs = predecessors(&gate_desc, rx_trigger).collect_vec();
+
+    let mut trigger_iterations: FxHashMap<_, _> =
+        trigger_inputs.iter().map(|&g| (g, None)).collect();
+
+    let mut i = 0;
+    while trigger_iterations.values().any(|v| v.is_none()) {
+        let mut record = trigger_inputs
+            .iter()
+            .map(|&g| ((g, Pulse::High), 0))
+            .collect();
+
         i += 1;
-        if let RunResult::Got = network.run(&broadcaster.0, Some(rx)) {
-            break i;
-        }
 
-        if i % 50000 == 0 {
-            println!("{i}");
-        }
-    };
+        network.run(&broadcaster.0, Some(&mut record));
 
-    print_res!("Button count required: {presses}");
+        for ((v, _), c) in record {
+            assert!(c < 2, "{v} triggered twice");
+            if c == 1 {
+                let period = trigger_iterations.get_mut(&v).unwrap();
+                if period.is_none() {
+                    *period = Some(i);
+                }
+            }
+        }
+    }
+
+    let all_period = trigger_iterations
+        .values()
+        .copied()
+        .map(Option::unwrap)
+        .fold(1, lcm);
+
+    print_res!("Button count required: {all_period}");
 }
 
 pub fn main() -> color_eyre::Result<()> {
