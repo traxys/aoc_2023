@@ -1,5 +1,6 @@
-use std::{collections::HashMap, time::Instant};
+use std::time::Instant;
 
+use fxhash::FxHashMap;
 use aoc_2023::{load, print_res};
 use bstr::{BString, ByteSlice};
 use color_eyre::eyre::ensure;
@@ -50,11 +51,11 @@ pub struct GateDesc {
     to: Vec<GateName>,
 }
 
-type Parsed<'a> = (Broadcaster, HashMap<GateName, GateDesc>);
+type Parsed<'a> = (Broadcaster, FxHashMap<GateName, GateDesc>);
 
 pub fn parsing(input: &BString) -> color_eyre::Result<Parsed> {
     let mut brodcaster = None;
-    let mut gates = HashMap::new();
+    let mut gates = FxHashMap::default();
 
     for line in input.lines() {
         let (name, outputs) = line
@@ -106,13 +107,18 @@ enum Pulse {
 
 #[derive(Debug)]
 enum GateState {
-    FlipFlop { state: bool },
-    Conjunction { from: HashMap<GateName, Pulse> },
+    FlipFlop {
+        state: bool,
+    },
+    Conjunction {
+        from: FxHashMap<GateName, Pulse>,
+        waiting: usize,
+    },
 }
 
 struct Network<'a> {
-    gates: HashMap<GateName, GateState>,
-    desc: &'a HashMap<GateName, GateDesc>,
+    gates: FxHashMap<GateName, GateState>,
+    desc: &'a FxHashMap<GateName, GateDesc>,
 }
 
 enum RunResult {
@@ -121,7 +127,7 @@ enum RunResult {
 }
 
 impl<'a> Network<'a> {
-    fn new(gate_desc: &'a HashMap<GateName, GateDesc>, broadcasters: &[GateName]) -> Self {
+    fn new(gate_desc: &'a FxHashMap<GateName, GateDesc>, broadcasters: &[GateName]) -> Self {
         Self {
             desc: gate_desc,
             gates: gate_desc
@@ -135,13 +141,14 @@ impl<'a> Network<'a> {
                                 "Conjunction gates can't have broadcaster as a source"
                             );
 
-                            GateState::Conjunction {
-                                from: gate_desc
-                                    .iter()
-                                    .filter(|(_, src_desc)| src_desc.to.contains(name))
-                                    .map(|(src, _)| (*src, Pulse::Low))
-                                    .collect(),
-                            }
+                            let from: FxHashMap<_, _> = gate_desc
+                                .iter()
+                                .filter(|(_, src_desc)| src_desc.to.contains(name))
+                                .map(|(src, _)| (*src, Pulse::Low))
+                                .collect();
+                            let waiting = from.len();
+
+                            GateState::Conjunction { from, waiting }
                         }
                     };
                     (*name, state)
@@ -197,11 +204,19 @@ impl<'a> Network<'a> {
                         }
                         Pulse::High => None,
                     },
-                    GateState::Conjunction { from } => {
+                    GateState::Conjunction { from, waiting } => {
                         let src = src.unwrap();
-                        from.insert(src, *len);
+                        let value = from.get_mut(&src).unwrap();
 
-                        Some(match from.values().all(|&l| l == Pulse::High) {
+                        if *value != *len {
+                            match value {
+                                Pulse::Low => *waiting -= 1,
+                                Pulse::High => *waiting += 1,
+                            }
+                            *value = *len;
+                        }
+
+                        Some(match *waiting == 0 {
                             true => Pulse::Low,
                             false => Pulse::High,
                         })

@@ -11,6 +11,7 @@ bstr = "1.8.0"
 clap = { version = "4.4.10", features = ["derive"] }
 color-eyre = "0.6.2"
 enum-map = "2.7.3"
+fxhash = "0.2.1"
 humantime = "2.1.0"
 im = "15.1.0"
 indexmap = "2.1.0"
