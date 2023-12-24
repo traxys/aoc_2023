@@ -26,7 +26,12 @@
       };
     in {
       devShell = pkgs.mkShell {
-        nativeBuildInputs = [rust cargo-aoc.defaultPackage.${system} pkgs.hyperfine];
+        nativeBuildInputs = [
+          rust
+          cargo-aoc.defaultPackage.${system}
+          pkgs.hyperfine
+          pkgs.cargo-flamegraph
+        ];
         RUST_PATH = "${rust}";
         RUST_DOC_PATH = "${rust}/share/doc/rust/html/std/index.html";
         AOC_YEAR = "2023";
