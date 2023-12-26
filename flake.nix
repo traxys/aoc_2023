@@ -31,10 +31,18 @@
           cargo-aoc.defaultPackage.${system}
           pkgs.hyperfine
           pkgs.cargo-flamegraph
+          pkgs.z3
         ];
         RUST_PATH = "${rust}";
         RUST_DOC_PATH = "${rust}/share/doc/rust/html/std/index.html";
         AOC_YEAR = "2023";
+        LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+        LD_LIBRARY_PATH = "${pkgs.z3.lib}/lib";
+        BINDGEN_EXTRA_CLANG_ARGS = let
+          inherit (pkgs) lib stdenv;
+        in
+          "-I${pkgs.z3.dev}/include "
+          + "-isystem ${stdenv.cc.cc}/include/c++/${lib.getVersion stdenv.cc.cc} -isystem ${stdenv.cc.cc}/include/c++/${lib.getVersion stdenv.cc.cc}/${stdenv.hostPlatform.config}";
       };
 
       defaultPackage = naersk'.buildPackage ./.;

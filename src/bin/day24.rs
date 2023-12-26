@@ -3,6 +3,10 @@ use std::time::Instant;
 use aoc_2023::{load, print_res};
 use bstr::{BString, ByteSlice};
 use itertools::Itertools;
+use z3::{
+    ast::{Ast, Int},
+    SatResult,
+};
 
 #[derive(Debug)]
 struct Vec3 {
@@ -112,7 +116,50 @@ pub fn part1(input: Parsed) {
 }
 
 pub fn part2(input: Parsed) {
-    todo!("todo part2")
+    let z3_cfg = z3::Config::new();
+    let z3 = z3::Context::new(&z3_cfg);
+    let solver = z3::Solver::new(&z3);
+
+    let x0 = Int::new_const(&z3, "x0");
+    let y0 = Int::new_const(&z3, "y0");
+    let z0 = Int::new_const(&z3, "z0");
+
+    let vx0 = Int::new_const(&z3, "vx0");
+    let vy0 = Int::new_const(&z3, "vy0");
+    let vz0 = Int::new_const(&z3, "vz0");
+
+    for (i, hail) in input[0..3].iter().enumerate() {
+        let t = Int::new_const(&z3, format!("t{i}"));
+
+        let x = Int::from_i64(&z3, hail.pos.x);
+        let y = Int::from_i64(&z3, hail.pos.y);
+        let z = Int::from_i64(&z3, hail.pos.z);
+
+        let vx = Int::from_i64(&z3, hail.vel.x);
+        let vy = Int::from_i64(&z3, hail.vel.y);
+        let vz = Int::from_i64(&z3, hail.vel.z);
+
+        let rx = x0.clone() + vx0.clone() * t.clone();
+        let ry = y0.clone() + vy0.clone() * t.clone();
+        let rz = z0.clone() + vz0.clone() * t.clone();
+
+        let hx = x + vx * t.clone();
+        let hy = y + vy * t.clone();
+        let hz = z + vz * t.clone();
+
+        solver.assert(&rx._eq(&hx));
+        solver.assert(&ry._eq(&hy));
+        solver.assert(&rz._eq(&hz));
+    }
+
+    assert_eq!(solver.check(), SatResult::Sat);
+    let model = solver.get_model().unwrap();
+
+    let x0 = model.get_const_interp(&x0).unwrap().as_i64().unwrap();
+    let y0 = model.get_const_interp(&y0).unwrap().as_i64().unwrap();
+    let z0 = model.get_const_interp(&z0).unwrap().as_i64().unwrap();
+
+    print_res!("Sum of coords: {}", x0 + y0 + z0)
 }
 
 pub fn main() -> color_eyre::Result<()> {
